@@ -1,0 +1,92 @@
+﻿@page "/newcontent/register-course"
+@using Domain.Entity.CourseEntity
+@using Domain.EntityVM
+@using System.Security.Claims;
+@inject ICourseService CourseService
+@inject IEnrollmentService EnrollmentService
+<h3>Register for a Course</h3>
+<div class="card-body">
+    @if (Courses != null)
+    {
+        <table class="table">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Id</th>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Courses)
+                {
+                    <tr>
+                        <td>@item.Id</td>
+                        <td>@item.Name</td>
+                        <td>@item.Description</td>
+                        <td>
+                            <button class="btn btn-info" @onclick="() => RegisterClicked(item)">
+                                @(item.IsRegistered ? "Unregister" : "Register")
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <em class="text-success text-center fw-bold shadow-lg border-1">Loading data...</em>
+    }
+</div>
+@code {
+    private IEnumerable<CourseVM> Courses;
+    private string userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await InitializeUserAsync();
+        await LoadCoursesAsync();
+    }
+
+    private async Task InitializeUserAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
+        {
+            userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        }
+    }
+
+    private async Task LoadCoursesAsync()
+    {
+        if (!string.IsNullOrEmpty(userId))
+        {
+            Courses = await CourseService.GetCoursesAsync(userId);
+        }
+    }
+
+    private async Task RegisterClicked(CourseVM course)
+    {
+        if (!string.IsNullOrEmpty(userId))
+        {
+            var action = course.IsRegistered ? "unregister" : "register";
+            var response = await EnrollmentService.EnrollStudentAsync(userId, course.Id, action);
+
+            if (response.Flag)
+            {
+                course.IsRegistered = !course.IsRegistered;
+                Console.WriteLine($"Successfully {action}ed for course: {course.Name}");
+            }
+            else
+            {
+                Console.WriteLine($"Failed to {action} for course: {response.Message}");
+            }
+
+            StateHasChanged();
+        }
+    }
+}
+

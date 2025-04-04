@@ -1,0 +1,62 @@
+﻿@page "/newcontent/registered-courses"
+@using Domain.EntityVM
+@using System.Security.Claims
+@inject ICourseService CourseService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavManager
+
+<h3>Registered Courses</h3>
+
+@if (Courses == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (!Courses.Any())
+{
+    <p>No courses registered yet.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Course Name</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var course in Courses)
+            {
+                <tr>
+                    <td>@course.Name</td>
+                    <td>@course.Description</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<div class="mt-3">
+    <button class="btn btn-primary" @onclick="NavigateToRegisterCourse">Register Courses</button>
+</div>
+
+@code {
+    private IEnumerable<CourseVM>? Courses { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (userId != null)
+        {
+            Courses = await CourseService.GetRegisteredCoursesAsync(userId);
+        }
+    }
+
+    private void NavigateToRegisterCourse()
+    {
+        NavManager.NavigateTo("/newcontent/register-course");
+    }
+}

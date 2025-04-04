@@ -1,0 +1,29 @@
+﻿@page "/newcontent/available-courses"
+@using Domain.Entity.CourseEntity
+@inject HttpClient Http
+@inject ICourseService CourseEnrollService
+
+<h3>Available Courses</h3>
+
+@if (courses == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <ul>
+        @foreach (var course in courses)
+        {
+            <li>@course.Name</li>
+        }
+    </ul>
+}
+
+@code {
+    private List<Course> courses;
+
+    protected override async Task OnInitializedAsync()
+    {
+        courses = await Http.GetFromJsonAsync<List<Course>>("api/courses");
+    }
+}

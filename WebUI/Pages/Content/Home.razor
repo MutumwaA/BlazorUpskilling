@@ -1,0 +1,197 @@
+﻿@page "/content/home"
+@using Domain.EntityVM
+@inject NavigationManager Navigation
+@inject HttpClient Http
+@inject IJSRuntime JS
+@using System.Security.Claims;
+
+<div class="row">
+    <div class="col-xl-12 col-lg-12 col-md-12 clo-sm-12">
+        <div class="card border-1 shadow-lg">
+            <AuthorizeView Roles="Admin">
+                <div class="card-header fw-bold text-info fs-4">
+                    Courses Information
+                    <button class="btn btn-info float-end" @onclick="AddCourseClicked">+ Add Course</button>
+                </div>
+            
+            <div class="card-body">
+                @if (Courses != null)
+                {
+                    <table class="table">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th>Id</th>
+                                <th>Name</th>
+                                <th>Description</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Courses)
+                            {
+                                <tr>
+                                    <td>@item.Id</td>
+                                    <td>@item.Name</td>
+                                    <td>@item.Description</td>
+                                    <td>
+                                        <button class="btn btn-info" @onclick="() => EditCourseClicked(item)">Edit</button>
+                                        <button class="btn btn-danger" @onclick="() => DeleteCourseClicked(item.Id)">Delete</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>                     
+                    </table>
+                }
+                else
+                {
+                    <em class="text-success text-center fw-bold shadow-lg border-1">Loading data...</em>
+                }
+            </div>
+            </AuthorizeView>
+        </div>
+    </div>
+</div>
+
+@if (IsOpen)
+{
+    <div class="modal" style="display:block;">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@ModalTitle</h5>
+                    <button type="button" class="btn-close" @onclick="CancelForm"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="@CourseModel" OnValidSubmit="@SaveCourse">
+                        <DataAnnotationsValidator />
+                        <div class="form-group">
+                            <label>Course Name</label>
+                            <InputText class="form-control" @bind-Value="@CourseModel.Name" />
+                        </div>
+                        <div class="form-group">
+                            <label>Course Description</label>
+                            <InputTextArea class="form-control" @bind-Value="@CourseModel.Description" />
+                        </div>
+                        <button type="submit" class="btn btn-primary mt-3">Save</button>
+                        <ValidationSummary />
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string ModalTitle = string.Empty;
+    public bool IsOpen { get; set; }
+    private CourseVM CourseModel { get; set; } = new();
+    private bool IsAdmin = false;
+    private string userId;
+    private IEnumerable<CourseVM> Courses { get; set; } = [];
+    public bool ShowCourseModel { get; set; } = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCourses();
+    }
+
+    private async Task LoadCourses()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+        Courses = await courseService.GetCoursesAsync(userId);
+    }
+
+    void AddCourseClicked()
+    {
+        ModalTitle = "Add Course";
+        CourseModel = new CourseVM();
+        IsOpen = true;
+        OpenModal();
+        
+    }
+
+    void EditCourseClicked(CourseVM course)
+    {
+        ModalTitle = "Edit Course";
+        CourseModel = course;
+        IsOpen = true;
+    }
+   
+    
+    async Task SaveCourse()
+    {
+        if (CourseModel.Id == 0)
+        {
+            try
+            {
+                var response = await courseService.AddCourseAsync(CourseModel);
+                if (response.Flag)
+                {
+                    await LoadCourses();
+                    IsOpen = false;
+                }
+                else
+                {
+                    Console.WriteLine(response.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+            }
+        }
+        else
+        {
+            try
+            {
+                var response = await courseService.EditCourseAsync(CourseModel);
+                if (response.Flag)
+                {
+                    await LoadCourses();
+                    IsOpen = false;
+                }
+                else
+                {
+                    Console.WriteLine(response.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+            }
+        }
+    }
+
+    async Task DeleteCourseClicked(int courseId)
+    {
+        try
+        {
+            var response = await courseService.DeleteCourseAsync(courseId);
+            if (response.Flag)
+            {
+                await LoadCourses();
+            }
+            else
+            {
+                Console.WriteLine(response.Message);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+    }
+    void ResetShowState()
+    {
+        ShowCourseModel = false;
+    }
+    void OpenModal() => IsOpen = true;
+
+    void CancelForm()
+    {
+        IsOpen = false;
+    }
+}
